@@ -1,5 +1,17 @@
 from matplotlib.path import Path
+from random import random, randrange
 
+
+class Node:
+    __slots__ = ('haplos', 'children', 'distance', 'delta_y')
+    def __init__(self, haplos, children=(), distance=0, delta_y=0):
+        self.haplos = haplos
+        self.children = children
+        self.distance = distance
+        self.delta_y = delta_y
+
+    def __repr__(self):
+        return '' + str(self.haplos) + ':'+ str(self.distance) + '(' + ','.join(map(repr, self.children))+')'
 
 class Drawing:
     def __init__(self):
@@ -33,9 +45,38 @@ def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
     d.horiz_bezier((x, y-hwidth+y_offset), (x+delta_x, y+delta_y-hwidth))
 
     top = width
-    for c_width, c_delta_x, c_delta_y, c_children in children:
-        top = top - c_width
-        draw(d, x+delta_x, y+delta_y, top + (c_width/2) - (width/2), c_width, c_delta_x, c_delta_y, c_children)
+    for c in children:
+        top = top - c.haplos#(haplos = width)
+        draw(d, x+delta_x, y+delta_y, top + (c.haplos/2) - (width/2), c.haplos, c.distance, c.delta_y, c.children)
 
 
+def tree(matrix):
+    #First dim is variants
+    nodes = (Node(list(range(matrix.shape[1]))),)
+    new_nodes = nodes
+
+    for i_var in range(matrix.shape[0]):
+        nodes_todo = []
+        calls = matrix[i_var]
+        for node in new_nodes:
+            separation = {}
+            for j_hap in node.haplos:
+                val = calls[j_hap]
+                separation.setdefault(val, []).append(j_hap)
+            node.distance += 1
+            if len(separation) > 1:
+
+                node.children = (
+                    Node(separation[0], delta_y=len(node.haplos)-len(separation[0])),
+                    Node(separation[1], delta_y=-len(node.haplos)+len(separation[1]))
+                )
+                node.haplos = len(node.haplos)
+                nodes_todo += node.children
+            else:
+                nodes_todo.append(node)
+
+        new_nodes = nodes_todo
+    for node in new_nodes:
+        node.haplos = len(node.haplos)
+    return nodes
 
