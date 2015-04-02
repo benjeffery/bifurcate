@@ -65,10 +65,14 @@ def tree(matrix):
                 separation.setdefault(val, []).append(j_hap)
             node.distance += 1
             if len(separation) > 1:
-
+                #top down - len_0 is on top
+                len_p = len(node.haplos)
+                len_0 = len(separation[0])
+                len_1 = len(separation[1])
+                mid = len_p-(2*len_0)
                 node.children = (
-                    Node(separation[0], delta_y=len(node.haplos)-len(separation[0])),
-                    Node(separation[1], delta_y=-len(node.haplos)+len(separation[1]))
+                    Node(separation[0], delta_y=mid+len_0),
+                    Node(separation[1], delta_y=mid-len_1)
                 )
                 node.haplos = len(node.haplos)
                 nodes_todo += node.children
