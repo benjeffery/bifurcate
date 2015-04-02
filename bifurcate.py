@@ -3,15 +3,16 @@ from random import random, randrange
 
 
 class Node:
-    __slots__ = ('haplos', 'children', 'distance', 'delta_y')
-    def __init__(self, haplos, children=(), distance=0, delta_y=0):
+    __slots__ = ('haplos', 'children', 'distance', 'delta_y', 'post_nonsplit')
+    def __init__(self, haplos, children=(), distance=0, delta_y=0, post_nonsplit=False):
         self.haplos = haplos
         self.children = children
         self.distance = distance
         self.delta_y = delta_y
+        self.post_nonsplit = post_nonsplit
 
     def __repr__(self):
-        return '' + str(self.haplos) + ':'+ str(self.distance) + '(' + ','.join(map(repr, self.children))+')'
+        return 'h:' + str(self.haplos) + ' d:'+ str(self.distance) + ' y:'+str(self.delta_y) + ' c:'+str(len(self.children))+'(' + ','.join(map(repr, self.children))+')'
 
 class Drawing:
     def __init__(self):
@@ -21,6 +22,12 @@ class Drawing:
          Path.CURVE4,
          Path.CURVE4,
          Path.CURVE4,)
+        self._line_codes = (Path.MOVETO,
+                            Path.LINETO,
+                            Path.LINETO,
+                            Path.LINETO,
+                            Path.CLOSEPOLY,
+                            )
 
     def horiz_bezier(self, start, end):
         mid = (start[0] + end[0]) / 2
@@ -30,24 +37,37 @@ class Drawing:
                  end)
         self.codes += self._bez_codes
 
-    def line(self, start, end):
-        self.verts += (start, end)
-        self.codes += (Path.MOVETO,
-                       Path.LINETO)
+    def horiz_bezier_segment(self, start, end, width):
+        start = (start[0], start[1] + width/2)
+        end = (end[0], end[1] + width/2)
+        self.horiz_bezier(start, end)
+        start = (start[0], start[1] - width)
+        end = (end[0], end[1] - width)
+        self.horiz_bezier(start, end)
+
+    def line_segment(self, start, end, width,):
+        one = (start[0], start[1] - width/2)
+        two = (start[0], start[1] + width/2)
+        four = (end[0], end[1] - width/2)
+        three = (end[0], end[1] + width/2)
+        self.codes += self._line_codes
+        self.verts += (one,
+                       two,
+                       three,
+                       four,
+                       (0,0))
 
     def path(self):
         return Path(self.verts, self.codes)
 
 def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
-    hwidth = width/2
-
-    d.horiz_bezier((x, y+hwidth+y_offset), (x+delta_x, y+delta_y+hwidth))
-    d.horiz_bezier((x, y-hwidth+y_offset), (x+delta_x, y+delta_y-hwidth))
+#    d.horiz_bezier_segment((x, y+y_offset), (x+delta_x, y+delta_y), width)
+    d.line_segment((x, y+y_offset), (x+delta_x, y+delta_y), width)
 
     top = width
     for c in children:
         top = top - c.haplos#(haplos = width)
-        draw(d, x+delta_x, y+delta_y, top + (c.haplos/2) - (width/2), c.haplos, c.distance, c.delta_y, c.children)
+        draw(d, x+delta_x, y+delta_y, top + (c.haplos/2) - (width/2), c.haplos, c.distance*10, c.delta_y, c.children)
 
 
 def tree(matrix):
@@ -65,6 +85,8 @@ def tree(matrix):
                 separation.setdefault(val, []).append(j_hap)
             node.distance += 1
             if len(separation) > 1:
+                if len(separation[0]) < len(separation[1]):
+                    separation[0], separation[1] = separation[1], separation[0]
                 #top down - len_0 is on top
                 len_p = len(node.haplos)
                 len_0 = len(separation[0])
@@ -77,7 +99,13 @@ def tree(matrix):
                 node.haplos = len(node.haplos)
                 nodes_todo += node.children
             else:
-                nodes_todo.append(node)
+                if (not node.post_nonsplit) and node.distance == 1:
+                    new_node = Node(node.haplos, delta_y=0, post_nonsplit=True)
+                    node.children = (new_node,)
+                    node.haplos = len(node.haplos)
+                    nodes_todo.append(new_node)
+                else:
+                    nodes_todo.append(node)
 
         new_nodes = nodes_todo
     for node in new_nodes:
