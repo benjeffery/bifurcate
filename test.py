@@ -36,7 +36,7 @@ test_data = (
 #draw(d, 0, 0, 0, 10, 0, 0, test_data)
 
 
-mat = np.load('haplotypes.npy')#[:100, :100]
+mat = np.load('haplotypes.npy')[:50, :]
 print(mat)
 print(mat.shape)
 
@@ -47,9 +47,10 @@ draw(d, 0, 0, 0, mat.shape[1], 0, 0, tree)
 fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.set_ylim(-2000, 2000)
-ax.set_xlim(0, 1000)
-patch = patches.PathPatch(d.path(), facecolor='black', lw=0)
-ax.add_patch(patch)
+ax.set_xlim(0, 500)
+for path in d.paths():
+    patch = patches.PathPatch(path, facecolor='black', lw=0)
+    ax.add_patch(patch)
 plt.savefig('bah.png')
 plt.savefig('bah.svg')
 print(tree)

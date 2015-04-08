@@ -4,6 +4,7 @@ from random import random, randrange
 
 class Node:
     __slots__ = ('haplos', 'children', 'distance', 'delta_y', 'post_nonsplit')
+
     def __init__(self, haplos, children=(), distance=0, delta_y=0, post_nonsplit=False):
         self.haplos = haplos
         self.children = children
@@ -12,16 +13,24 @@ class Node:
         self.post_nonsplit = post_nonsplit
 
     def __repr__(self):
-        return 'h:' + str(self.haplos) + ' d:'+ str(self.distance) + ' y:'+str(self.delta_y) + ' c:'+str(len(self.children))+'(' + ','.join(map(repr, self.children))+')'
+        return 'h:' + str(self.haplos) + ' d:' + str(self.distance) + ' y:' + str(self.delta_y) + ' c:' + str(
+            len(self.children)) + '(' + ','.join(map(repr, self.children)) + ')'
+
 
 class Drawing:
     def __init__(self):
         self.codes = []
         self.verts = []
         self._bez_codes = (Path.MOVETO,
-         Path.CURVE4,
-         Path.CURVE4,
-         Path.CURVE4,)
+                           Path.CURVE4,
+                           Path.CURVE4,
+                           Path.CURVE4,
+                           Path.LINETO,
+                           Path.CURVE4,
+                           Path.CURVE4,
+                           Path.CURVE4,
+                           Path.CLOSEPOLY,
+                           )
         self._line_codes = (Path.MOVETO,
                             Path.LINETO,
                             Path.LINETO,
@@ -29,49 +38,55 @@ class Drawing:
                             Path.CLOSEPOLY,
                             )
 
-    def horiz_bezier(self, start, end):
-        mid = (start[0] + end[0]) / 2
-        self.verts += (start,
-                 (mid, start[1]),
-                 (mid, end[1]),
-                 end)
-        self.codes += self._bez_codes
-
     def horiz_bezier_segment(self, start, end, width):
-        start = (start[0], start[1] + width/2)
-        end = (end[0], end[1] + width/2)
-        self.horiz_bezier(start, end)
-        start = (start[0], start[1] - width)
-        end = (end[0], end[1] - width)
-        self.horiz_bezier(start, end)
+        mid = (start[0] + end[0]) / 2
+        start = (start[0], start[1] + width / 2)
+        end = (end[0], end[1] + width / 2)
+        verts = [start,
+            (mid, start[1]),
+            (mid, end[1]),
+            end
+        ]
+        end = (start[0], start[1] - width)
+        start = (end[0], end[1] - width)
+        verts += [start,
+            (mid, start[1]),
+            (mid, end[1]),
+            end,
+            (None, None)
+        ]
+        self.codes.append(self._bez_codes)
+        self.verts.append(verts)
 
-    def line_segment(self, start, end, width,):
-        one = (start[0], start[1] - width/2)
-        two = (start[0], start[1] + width/2)
-        four = (end[0], end[1] - width/2)
-        three = (end[0], end[1] + width/2)
-        self.codes += self._line_codes
-        self.verts += (one,
-                       two,
-                       three,
-                       four,
-                       (0,0))
+    def line_segment(self, start, end, width):
+        one = (start[0], start[1] - width / 2)
+        two = (start[0], start[1] + width / 2)
+        four = (end[0], end[1] - width / 2)
+        three = (end[0], end[1] + width / 2)
+        self.codes.append(self._line_codes)
+        self.verts.append((one,
+                           two,
+                           three,
+                           four,
+                           (None, None)))
 
-    def path(self):
-        return Path(self.verts, self.codes)
+    def paths(self):
+        return (Path(verts, codes) for verts, codes in zip(self.verts, self.codes))
+
 
 def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
-#    d.horiz_bezier_segment((x, y+y_offset), (x+delta_x, y+delta_y), width)
+    #d.horiz_bezier_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
     d.line_segment((x, y+y_offset), (x+delta_x, y+delta_y), width)
 
     top = width
     for c in children:
-        top = top - c.haplos#(haplos = width)
-        draw(d, x+delta_x, y+delta_y, top + (c.haplos/2) - (width/2), c.haplos, c.distance*10, c.delta_y, c.children)
+        top = top - c.haplos  #(haplos = width)
+        draw(d, x + delta_x, y + delta_y, top + (c.haplos / 2) - (width / 2), c.haplos, c.distance * 10, c.delta_y,
+             c.children)
 
 
 def tree(matrix):
-    #First dim is variants
+    # First dim is variants
     nodes = (Node(list(range(matrix.shape[1]))),)
     new_nodes = nodes
 
@@ -91,10 +106,10 @@ def tree(matrix):
                 len_p = len(node.haplos)
                 len_0 = len(separation[0])
                 len_1 = len(separation[1])
-                mid = len_p-(2*len_0)
+                mid = len_p - (2 * len_0)
                 node.children = (
-                    Node(separation[0], delta_y=mid+len_0),
-                    Node(separation[1], delta_y=mid-len_1)
+                    Node(separation[0], delta_y=mid + len_0),
+                    Node(separation[1], delta_y=mid - len_1)
                 )
                 node.haplos = len(node.haplos)
                 nodes_todo += node.children
