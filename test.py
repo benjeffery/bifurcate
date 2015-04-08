@@ -36,20 +36,20 @@ test_data = (
 #draw(d, 0, 0, 0, 10, 0, 0, test_data)
 
 
-mat = np.load('haplotypes.npy')[:50, :]
+mat = np.load('haplotypes.npy')[:500, :]
 print(mat)
 print(mat.shape)
 
 tree = tree(mat)
 d = Drawing()
-draw(d, 0, 0, 0, mat.shape[1], 0, 0, tree)
+draw(d, 0, 0, 0, float(mat.shape[1])/20, 0, 0, tree)
 
-fig = plt.figure()
+fig = plt.figure(figsize=(12,6), dpi=480)
 ax = fig.add_subplot(111)
 ax.set_ylim(-2000, 2000)
-ax.set_xlim(0, 500)
+ax.set_xlim(0, 8000)
 for path in d.paths():
-    patch = patches.PathPatch(path, facecolor='black', lw=0)
+    patch = patches.PathPatch(path, facecolor='none', lw=1)
     ax.add_patch(patch)
 plt.savefig('bah.png')
 plt.savefig('bah.svg')

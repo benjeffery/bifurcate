@@ -26,6 +26,9 @@ class Point:
         self.x = x
         self.y = y
 
+    def __repr__(self):
+        return "P({0.x}, {0.y})".format(self)
+
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
 
@@ -75,9 +78,7 @@ class Circle:
         a = (self.r * self.r - other.r * other.r + d * d) / (2 * d)
         h = sqrt(self.r * self.r - a * a)
         tp = ((other.c - self.c) * (a / d)) + self.c
-        print(d)
-        print(h)
-        print(a)
+
         return (Point(tp.x + h * (other.c.y - self.c.y) / d, tp.y - h * (other.c.x - self.c.x) / d),
                 Point(tp.x - h * (other.c.y - self.c.y) / d, tp.y + h * (other.c.x - self.c.x) / d))
 
@@ -117,6 +118,14 @@ class Drawing:
                             Path.LINETO,
                             Path.CLOSEPOLY,
         )
+        self._hex_codes = (Path.MOVETO,
+                            Path.LINETO,
+                            Path.LINETO,
+                            Path.LINETO,
+                            Path.LINETO,
+                            Path.LINETO,
+                            Path.CLOSEPOLY,
+        )
 
     def horiz_bezier_segment(self, start, end, width):
         mid = (start[0] + end[0]) / 2
@@ -151,36 +160,54 @@ class Drawing:
                            (None, None)))
 
     def width_maintained_segment(self, start, end, width):
+        print(start, end, width)
+        start_u = (start[0], start[1] + width / 2)
+        start_l = (start[0], start[1] - width / 2)
+        end_u = (end[0], end[1] + width / 2)
+        end_l = (end[0], end[1] - width / 2)
+
         if start[1] > end[1]:
-            a = Point(start[0], start[1] - width / 2)
-            c = Point(end[0], end[1] + width / 2)
-            a,b,c,d = find_rectangle(a, c, width, 'down')
+            a,off_b,c,off_d = find_rectangle(Point(*start_l), Point(*end_u), width, 'down')
+            self.codes.append(self._hex_codes)
+            self.verts.append((start_u,
+                               start_l,
+                               off_d.tuple(),
+                               end_l,
+                               end_u,
+                               off_b.tuple(),
+                               (None, None)))
         else:
-            a = Point(start[0], start[1] + width / 2)
-            c = Point(end[0], end[1] - width / 2)
-            a,b,c,d = find_rectangle(a, c, width, 'up')
-        self.codes.append(self._line_codes)
-        self.verts.append((a.tuple(),
-                           b.tuple(),
-                           c.tuple(),
-                           d.tuple(),
-                           (None, None)))
+            a,off_b,c,off_d = find_rectangle(Point(*start_u), Point(*end_l), width, 'up')
+            self.codes.append(self._hex_codes)
+            self.verts.append((start_u,
+                               start_l,
+                               off_b.tuple(),
+                               end_l,
+                               end_u,
+                               off_d.tuple(),
+                               (None, None)))
+
 
     def paths(self):
         return (Path(verts, codes) for verts, codes in zip(self.verts, self.codes))
 
 
 def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
-    # d.horiz_bezier_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
+    # d.width_maintained_segment((100, 50), (200, 200), 50)
+    # d.width_maintained_segment((100, 500), (200, 350), 50)
+    # d.width_maintained_segment((280, 224.01), (360, 720), 16.52)
+    # d.line_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
     try:
-        d.width_maintained_segment((x, y + y_offset), (x + delta_x, y + delta_y), width/10)
+        d.width_maintained_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
     except:
         pass
+    # d.line_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
 
     top = width
     for c in children:
-        top = top - c.haplos  #(haplos = width)
-        draw(d, x + delta_x, y + delta_y, top + (c.haplos / 2) - (width / 2), c.haplos, c.distance * 20, c.delta_y,
+        child_width = float(c.haplos)/20
+        top = top - child_width  #(haplos = width)
+        draw(d, x + delta_x, y + delta_y, top + (child_width / 2) - (width / 2), child_width, c.distance * 80, c.delta_y,
              c.children)
 
 
