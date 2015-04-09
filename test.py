@@ -3,7 +3,8 @@ from matplotlib import patches
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-from bifurcate import Drawing, draw, tree, Node
+from bifurcate import tree, Node
+from drawing import Drawing, draw
 import pprint
 
 test_data = (
