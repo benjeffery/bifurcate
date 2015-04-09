@@ -1,7 +1,6 @@
-from collections import namedtuple
-from math import sqrt
+from math import sqrt, asin, degrees, atan2
+from matplotlib import patches
 from matplotlib.path import Path
-from random import random, randrange
 
 
 class Node:
@@ -48,7 +47,12 @@ class Point:
         return sqrt(pow(self.x - other.x, 2) + pow(self.y - other.y, 2))
 
     def tuple(self):
-        return (self.x, self.y)
+        return self.x, self.y
+
+    def angle(self):
+        return degrees(atan2(self.y, self.x))
+
+
 
 class Circle:
     __slots__ = ('c', 'r')
@@ -64,13 +68,13 @@ class Circle:
         # Too far apart
         if d > self.r + other.r:
             return ()
-        #One inside other
+        # One inside other
         if other.r > d + self.r:
             return ()
         if self.r > d + other.r:
             return ()
 
-        #Identical - actually infinite....
+        # Identical - actually infinite....
         if self.r == other.r and self.c == other.c:
             return ()
 
@@ -98,10 +102,17 @@ def find_rectangle(a, c, width, direction):
     return a, b, c, d
 
 
+def path_maker(func):
+    def wrapped(self, *args, **kwargs):
+        patch = patches.PathPatch(Path(*func(self, *args, **kwargs)), **self.drawing_kwargs)
+        self.patches.append(patch)
+    return wrapped
+
+
 class Drawing:
-    def __init__(self):
-        self.codes = []
-        self.verts = []
+    def __init__(self, **drawing_kwargs):
+        self.drawing_kwargs = drawing_kwargs
+        self.patches = []
         self._bez_codes = (Path.MOVETO,
                            Path.CURVE4,
                            Path.CURVE4,
@@ -112,21 +123,22 @@ class Drawing:
                            Path.CURVE4,
                            Path.CLOSEPOLY,
         )
-        self._line_codes = (Path.MOVETO,
+        self._quad_codes = (Path.MOVETO,
                             Path.LINETO,
                             Path.LINETO,
                             Path.LINETO,
                             Path.CLOSEPOLY,
         )
         self._hex_codes = (Path.MOVETO,
-                            Path.LINETO,
-                            Path.LINETO,
-                            Path.LINETO,
-                            Path.LINETO,
-                            Path.LINETO,
-                            Path.CLOSEPOLY,
+                           Path.LINETO,
+                           Path.LINETO,
+                           Path.LINETO,
+                           Path.LINETO,
+                           Path.LINETO,
+                           Path.CLOSEPOLY,
         )
 
+    @path_maker
     def horiz_bezier_segment(self, start, end, width):
         mid = (start[0] + end[0]) / 2
         start = (start[0], start[1] + width / 2)
@@ -144,52 +156,54 @@ class Drawing:
                   end,
                   (None, None)
         ]
-        self.codes.append(self._bez_codes)
-        self.verts.append(verts)
+        return verts, self._bez_codes
 
+    @path_maker
     def line_segment(self, start, end, width):
         one = (start[0], start[1] - width / 2)
         two = (start[0], start[1] + width / 2)
         four = (end[0], end[1] - width / 2)
         three = (end[0], end[1] + width / 2)
-        self.codes.append(self._line_codes)
-        self.verts.append((one,
-                           two,
-                           three,
-                           four,
-                           (None, None)))
+        return (one,
+                two,
+                three,
+                four,
+                (None, None)), self._quad_codes
 
+    def arc_from_three_points(self, center, a, b):
+        h = center.distance(a)
+        a = a-center
+        b = b-center
+        self.patches.append(patches.Wedge(center.tuple(), h, b.angle(), a.angle(), **self.drawing_kwargs))
+
+    @path_maker
     def width_maintained_segment(self, start, end, width):
-        print(start, end, width)
         start_u = (start[0], start[1] + width / 2)
         start_l = (start[0], start[1] - width / 2)
         end_u = (end[0], end[1] + width / 2)
         end_l = (end[0], end[1] - width / 2)
 
         if start[1] > end[1]:
-            a,off_b,c,off_d = find_rectangle(Point(*start_l), Point(*end_u), width, 'down')
-            self.codes.append(self._hex_codes)
-            self.verts.append((start_u,
-                               start_l,
-                               off_d.tuple(),
-                               end_l,
-                               end_u,
-                               off_b.tuple(),
-                               (None, None)))
+            a, off_b, c, off_d = find_rectangle(Point(*start_l), Point(*end_u), width, 'down')
+            self.arc_from_three_points(Point(*start_l), Point(*start_u), off_b)
+            self.arc_from_three_points(Point(*end_u), Point(*end_l), off_d)
+            return (start_l,
+                    off_d.tuple(),
+                    end_u,
+                    off_b.tuple(),
+                    (None, None)), self._quad_codes
         else:
-            a,off_b,c,off_d = find_rectangle(Point(*start_u), Point(*end_l), width, 'up')
-            self.codes.append(self._hex_codes)
-            self.verts.append((start_u,
-                               start_l,
-                               off_b.tuple(),
-                               end_l,
-                               end_u,
-                               off_d.tuple(),
-                               (None, None)))
+            a, off_b, c, off_d = find_rectangle(Point(*start_u), Point(*end_l), width, 'up')
+            self.arc_from_three_points(Point(*start_u), off_b, Point(*start_l))
+            self.arc_from_three_points(Point(*end_l), off_d, Point(*end_u))
+            return (start_u,
+                    off_b.tuple(),
+                    end_l,
+                    off_d.tuple(),
+                    (None, None)), self._quad_codes
 
-
-    def paths(self):
-        return (Path(verts, codes) for verts, codes in zip(self.verts, self.codes))
+    def patches(self):
+        return self.patches
 
 
 def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
@@ -205,9 +219,10 @@ def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
 
     top = width
     for c in children:
-        child_width = float(c.haplos)/20
-        top = top - child_width  #(haplos = width)
-        draw(d, x + delta_x, y + delta_y, top + (child_width / 2) - (width / 2), child_width, c.distance * 80, c.delta_y,
+        child_width = float(c.haplos) / 10
+        top -= child_width  # (haplos = width)
+        draw(d, x + delta_x, y + delta_y, top + (child_width / 2) - (width / 2), child_width, c.distance * 160,
+             c.delta_y,
              c.children)
 
 

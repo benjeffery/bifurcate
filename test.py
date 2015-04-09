@@ -41,15 +41,14 @@ print(mat)
 print(mat.shape)
 
 tree = tree(mat)
-d = Drawing()
+d = Drawing(facecolor='black', lw=0.5)
 draw(d, 0, 0, 0, float(mat.shape[1])/20, 0, 0, tree)
 
-fig = plt.figure(figsize=(12,6), dpi=480)
+fig = plt.figure(figsize=(12,6), dpi=800)
 ax = fig.add_subplot(111)
 ax.set_ylim(-2000, 2000)
 ax.set_xlim(0, 8000)
-for path in d.paths():
-    patch = patches.PathPatch(path, facecolor='none', lw=1)
+for patch in d.patches:
     ax.add_patch(patch)
 plt.savefig('bah.png')
 plt.savefig('bah.svg')
