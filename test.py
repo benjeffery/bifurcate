@@ -3,7 +3,7 @@ from matplotlib import patches
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-from bifurcate import tree, Node
+from bifurcate import Tree, Node
 from drawing import Drawing, draw
 import pprint
 
@@ -37,18 +37,19 @@ test_data = (
 #draw(d, 0, 0, 0, 10, 0, 0, test_data)
 
 
-mat = np.load('haplotypes.npy')[:500, :]
+mat = np.load('haplotypes.npy')[:50, :]
 print(mat)
 print(mat.shape)
 
-tree = tree(mat)
+tree = Tree(mat)
+tree.arrange_y(0.1, 10)
 d = Drawing(facecolor='black', lw=0.5)
-draw(d, 0, 0, 0, float(mat.shape[1])/20, 0, 0, tree)
+draw(d, 0, 0, 0, float(mat.shape[1])/20, 0, 0, [tree.root_node])
 
 fig = plt.figure(figsize=(12,6), dpi=800)
 ax = fig.add_subplot(111)
 ax.set_ylim(-2000, 2000)
-ax.set_xlim(0, 8000)
+ax.set_xlim(0, 16000)
 for patch in d.patches:
     ax.add_patch(patch)
 plt.savefig('bah.png')

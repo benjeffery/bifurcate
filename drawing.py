@@ -2,6 +2,14 @@ from math import sqrt, asin, degrees, atan2
 from matplotlib import patches
 from matplotlib.path import Path
 
+def get_ax_size(ax):
+    fig = ax.get_figure()
+    bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    width, height = bbox.width, bbox.height
+    width *= fig.dpi
+    height *= fig.dpi
+    return width, height
+
 class Point:
     __slots__ = ('x', 'y')
 
@@ -203,7 +211,7 @@ def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
 
     top = width
     for c in children:
-        child_width = float(c.haplos) / 10
+        child_width = float(c.haplos)/10
         top -= child_width  # (haplos = width)
         draw(d, x + delta_x, y + delta_y, top + (child_width / 2) - (width / 2), child_width, c.distance * 160,
              c.delta_y,
