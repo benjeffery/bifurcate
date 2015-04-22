@@ -1,4 +1,4 @@
-from math import sqrt, asin, degrees, atan2
+from math import sqrt, asin, degrees, atan2, fabs
 from matplotlib import patches
 from matplotlib.path import Path
 
@@ -166,7 +166,12 @@ class Drawing:
         h = center.distance(a)
         a = a-center
         b = b-center
-        self.patches.append(patches.Wedge(center.tuple(), h, b.angle(), a.angle(), **self.drawing_kwargs))
+        ab = b.angle()
+        aa = a.angle()
+        #Sometimes we draw a full circle when we should draw nothing due to floating point errors, so test for rough equality
+        if not (fabs(aa - ab) < 0.01):
+            self.patches.append(patches.Wedge(center.tuple(), h, ab, aa,  **self.drawing_kwargs))
+
 
     @path_maker
     def width_maintained_segment(self, start, end, width):
@@ -176,23 +181,49 @@ class Drawing:
         end_l = (end[0], end[1] - width / 2)
 
         if start[1] > end[1]:
-            a, off_b, c, off_d = find_rectangle(Point(*start_l), Point(*end_u), width, 'down')
-            self.arc_from_three_points(Point(*start_l), Point(*start_u), off_b)
-            self.arc_from_three_points(Point(*end_u), Point(*end_l), off_d)
-            return (start_l,
-                    off_d.tuple(),
-                    end_u,
-                    off_b.tuple(),
-                    (None, None)), self._quad_codes
+            try:
+                a, off_b, c, off_d = find_rectangle(Point(*start_l), Point(*end_u), width, 'down')
+                self.arc_from_three_points(Point(*start_l), Point(*start_u), off_b)
+                self.arc_from_three_points(Point(*end_u), Point(*end_l), off_d)
+                return (start_l,
+                        off_d.tuple(),
+                        end_u,
+                        off_b.tuple(),
+                        (None, None)), self._quad_codes
+            except ValueError:
+                return ((start,
+                        (start[0], end[1]),
+                        end,
+                        (end[0], start[1]),
+                        (None, None)),
+                        self._quad_codes)
         else:
-            a, off_b, c, off_d = find_rectangle(Point(*start_u), Point(*end_l), width, 'up')
-            self.arc_from_three_points(Point(*start_u), off_b, Point(*start_l))
-            self.arc_from_three_points(Point(*end_l), off_d, Point(*end_u))
-            return (start_u,
-                    off_b.tuple(),
-                    end_l,
-                    off_d.tuple(),
-                    (None, None)), self._quad_codes
+            try:
+                a, off_b, c, off_d = find_rectangle(Point(*start_u), Point(*end_l), width, 'up')
+                self.arc_from_three_points(Point(*start_u), off_b, Point(*start_l))
+                self.arc_from_three_points(Point(*end_l), off_d, Point(*end_u))
+                return (start_u,
+                        off_b.tuple(),
+                        end_l,
+                        off_d.tuple(),
+                        (None, None)), self._quad_codes
+            except ValueError:
+                mid = Point(*start_u).midpoint(Point(*end_l)).tuple()
+                hw = width/2
+                gap = end[0] - start[0]
+                overdraw = (width - gap)/2
+                left = mid[0] - hw
+                right = mid[0] + hw
+                top = end_u[1]
+                bottom = start_l[1]
+                print(top,bottom,left, right)
+                return (((left, bottom),
+                        (left, top),
+                         (right, top),
+                         (right, bottom),
+                        (None, None)),
+                        self._quad_codes)
+
 
     def patches(self):
         return self.patches
@@ -203,15 +234,12 @@ def draw(d, x, y, y_offset, width, delta_x, delta_y, children):
     # d.width_maintained_segment((100, 500), (200, 350), 50)
     # d.width_maintained_segment((280, 224.01), (360, 720), 16.52)
     # d.line_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
-    try:
-        d.width_maintained_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
-    except:
-        pass
+    d.width_maintained_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
     # d.line_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
 
     top = width
     for c in children:
-        child_width = float(c.haplos)/10
+        child_width = float(c.haplos)/5
         top -= child_width  # (haplos = width)
         draw(d, x + delta_x, y + delta_y, top + (child_width / 2) - (width / 2), child_width, c.distance * 160,
              c.delta_y,

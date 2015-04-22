@@ -18,8 +18,9 @@ class Node:
 
 
 class Tree:
-    def __init__(self, matrix):
+    def __init__(self, matrix, pos):
         self.matrix = matrix
+        self.pos = pos
         self.root_node = None
         self.nodes = []
         self.leaf_nodes = []
