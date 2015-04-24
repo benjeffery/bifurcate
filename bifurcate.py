@@ -41,7 +41,7 @@ class Tree:
                     val = calls[j_hap]
                     separation.setdefault(val, []).append(j_hap)
                 node.distance += 1
-                if len(separation) > 1:
+                if len(separation) > 1 and len(node.haplos) > 200:
                     node.children = (
                         Node(separation[0], parent=node),
                         Node(separation[1], parent=node)
@@ -89,11 +89,26 @@ class Tree:
                     len_p = node.haplos*sample_width + node.splits*split_width
                     len_0 = node.children[0].haplos*sample_width + node.children[0].splits*split_width
                     len_1 = node.children[1].haplos*sample_width + node.children[1].splits*split_width
-                    mid = len_p/2 - (len_0)
+                    mid = len_p/2 - len_0
                     node.children[0].delta_y=mid + len_0/2
                     node.children[1].delta_y=mid - len_1/2
 
+    def draw(self, d, x, y, sample_size):
+        self._draw(d, x, y, 0, float(self.matrix.shape[1])*sample_size, 0, 0, [self.root_node], sample_size)
 
+
+    def _draw(self, d, x, y, y_offset, width, delta_x, delta_y, children, sample_size):
+        #d.width_maintained_segment((x, y + y_offset), (x + delta_x, y + delta_y), width)
+        off = 10
+        #d.simple_line((x-off, y + y_offset-off), (x + delta_x-off, y + delta_y-off), width, 'black')
+        d.simple_line((x, y + y_offset), (x + delta_x, y + delta_y), width, 'grey')
+        top = width
+        for c in children:
+            child_width = float(c.haplos)*sample_size
+            top -= child_width  # (haplos = width)
+            self._draw(d, x + delta_x, y + delta_y, top + (child_width / 2) - (width / 2), child_width, c.distance * 30,
+                 c.delta_y,
+                 c.children, sample_size)
 
 
 

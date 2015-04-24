@@ -4,21 +4,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 from bifurcate import Tree, Node
-from drawing import Drawing, draw
+from drawing import Drawing
 import pprint
 
 mat = np.load('haplotypes.npy')
 pos = np.load('pos.npy')
-mat = mat[:50,:]
+mat = mat[:100,:]
 tree = Tree(mat, pos)
-tree.arrange_y(0.2, 10)
-d = Drawing(facecolor='none', edgecolor='grey', joinstyle="round", antialiased=True)
-draw(d, 0, 0, 0, float(mat.shape[1])/5, 0, 0, [tree.root_node])
+sample_size = 0.2
+tree.arrange_y(sample_size, 10)
+d = Drawing(facecolor='grey', alpha = .2, capstyle='round', joinstyle="round", antialiased=True)
+tree.draw(d, 0, 0, sample_size)
 
-fig = plt.figure(figsize=(24,12), dpi=800)
+fig = plt.figure(figsize=(24,12))
 ax = fig.add_subplot(111)
 ax.set_xlim(0, 4000)
-ax.set_ylim(-1000, 1000)
+ax.set_ylim(-2000, 2000)
 for patch in d.patches:
     ax.add_patch(patch)
 plt.show()
